@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import AppIcon from './AppIcon.vue'
 import SystemDiagram from './SystemDiagram.vue'
 import ProjectModal from './ProjectModal.vue'
 import { useI18n } from '@/composables/useI18n'
 import type { Project } from '@/content/types'
 
-/** Кейсы как развороты, а не сетка карточек: чертёж системы, текст
- *  и главное — дельта «было → стало». Ценность работы измеряется
- *  разницей состояний, поэтому она стоит в самом кейсе, а не в модалке. */
+/** Главная страница отвечает на один вопрос: что сделано и что это дало.
+ *  Поэтому развёрнутый разворот только у флагманского кейса, остальные —
+ *  строкой с результатом. Подробности лежат во вклейке, а не на полосе:
+ *  список задач никого не убеждает, разница состояний убеждает. */
 
 const { t } = useI18n()
+
+const featured = computed<Project | undefined>(() => t.value.projects.items.find((p) => p.featured))
+const rest = computed<Project[]>(() => t.value.projects.items.filter((p) => !p.featured))
+
 const openProject = ref<Project | null>(null)
 </script>
 
@@ -26,79 +31,92 @@ const openProject = ref<Project | null>(null)
       <p class="lead-serif proj__intro" v-reveal="60">{{ t.projects.intro }}</p>
     </div>
 
-    <div class="spreads">
-      <article
-        v-for="(p, i) in t.projects.items"
-        :key="p.id"
-        class="spread"
-        :class="{ 'spread--flip': i % 2 === 1, 'spread--lead': p.featured }"
-      >
-        <div class="shell spread__inner">
-          <div class="spread__text" v-reveal>
-            <p class="spread__meta">
-              <span class="spread__num">{{ String(i + 1).padStart(2, '0') }}</span>
-              <span class="spread__kicker">{{ p.kicker }}</span>
-              <span class="spread__year data">{{ p.year }}</span>
-            </p>
+    <!-- Флагманский кейс: единственный, кто получает полный разворот -->
+    <article v-if="featured" class="lead-case">
+      <div class="shell lead-case__inner">
+        <div class="lead-case__text" v-reveal>
+          <p class="lead-case__meta">
+            <span class="lead-case__num">01</span>
+            <span class="lead-case__kicker">{{ featured.kicker }}</span>
+            <span class="data lead-case__year">{{ featured.year }}</span>
+          </p>
 
-            <h3 class="headline--sm spread__name">{{ p.title }}</h3>
-            <p class="spread__role data">{{ p.role }}</p>
-            <p class="serif spread__summary">{{ p.summary }}</p>
+          <h3 class="headline--sm lead-case__name">{{ featured.title }}</h3>
+          <p class="serif lead-case__summary">{{ featured.summary }}</p>
 
-            <!-- Дельта: два состояния через диффовые маркеры -->
-            <dl v-if="p.delta" class="delta">
-              <div class="delta__row delta__row--before">
-                <dt class="delta__tag">
-                  <span class="delta__sign" aria-hidden="true">−</span>{{ t.projects.before }}
-                </dt>
-                <dd class="delta__text">{{ p.delta.before }}</dd>
-              </div>
-              <div class="delta__row delta__row--after">
-                <dt class="delta__tag">
-                  <span class="delta__sign" aria-hidden="true">+</span>{{ t.projects.after }}
-                </dt>
-                <dd class="delta__text">{{ p.delta.after }}</dd>
-              </div>
-            </dl>
-
-            <ul v-if="p.metrics" class="figures">
-              <li v-for="m in p.metrics" :key="m.label" class="figures__item">
-                <span class="figure figures__value">{{ m.value }}</span>
-                <span class="figures__label">{{ m.label }}</span>
-              </li>
-            </ul>
-
-            <p class="spread__stack data">
-              <span v-for="(sTech, si) in p.stack" :key="sTech">
-                <span v-if="si > 0" aria-hidden="true"> / </span>{{ sTech }}
-              </span>
-            </p>
-
-            <div class="spread__actions">
-              <button class="btn btn--sm" @click="openProject = p">
-                {{ t.projects.open }}
-                <AppIcon name="arrow-right" :size="14" />
-              </button>
-              <a
-                v-for="link in p.links"
-                :key="link.href"
-                class="link spread__link"
-                :href="link.href"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {{ link.label }}
-                <AppIcon name="external" :size="12" />
-              </a>
+          <dl v-if="featured.delta" class="delta">
+            <div class="delta__row delta__row--before">
+              <dt class="delta__tag">
+                <span class="delta__sign" aria-hidden="true">−</span>{{ t.projects.before }}
+              </dt>
+              <dd class="delta__text">{{ featured.delta.before }}</dd>
             </div>
-          </div>
+            <div class="delta__row delta__row--after">
+              <dt class="delta__tag">
+                <span class="delta__sign" aria-hidden="true">+</span>{{ t.projects.after }}
+              </dt>
+              <dd class="delta__text">{{ featured.delta.after }}</dd>
+            </div>
+          </dl>
 
-          <div class="spread__dia" v-reveal="100">
-            <SystemDiagram :variant="p.id" :image="p.image" :alt="p.imageAlt" />
-            <p v-if="p.takeaway" class="spread__takeaway serif">{{ p.takeaway }}</p>
+          <ul v-if="featured.metrics" class="figures">
+            <li v-for="m in featured.metrics" :key="m.label" class="figures__item">
+              <span class="figure figures__value">{{ m.value }}</span>
+              <span class="figures__label">{{ m.label }}</span>
+            </li>
+          </ul>
+
+          <div class="lead-case__actions">
+            <button class="btn btn--sm" @click="openProject = featured">
+              {{ t.projects.open }}
+              <AppIcon name="arrow-right" :size="14" />
+            </button>
+            <a
+              v-for="link in featured.links"
+              :key="link.href"
+              class="link lead-case__link"
+              :href="link.href"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ link.label }}
+              <AppIcon name="external" :size="12" />
+            </a>
           </div>
         </div>
-      </article>
+
+        <div class="lead-case__dia" v-reveal="100">
+          <SystemDiagram :variant="featured.id" :image="featured.image" :alt="featured.imageAlt" />
+          <p v-if="featured.takeaway" class="lead-case__takeaway serif">{{ featured.takeaway }}</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- Остальные: название и что это дало. Детали — во вклейке -->
+    <div class="shell">
+      <p class="label more__label">{{ t.projects.moreTitle }}</p>
+
+      <ol class="more">
+        <li v-for="(p, i) in rest" :key="p.id" class="more__row" v-reveal="i * 40">
+          <button class="more__btn" @click="openProject = p">
+            <span class="more__num">{{ String(i + 2).padStart(2, '0') }}</span>
+
+            <span class="more__main">
+              <span class="more__name title">{{ p.title }}</span>
+              <span class="more__kicker">{{ p.kicker }}</span>
+            </span>
+
+            <span class="more__outcome">
+              <span class="more__outcome-tag">+ {{ t.projects.outcome }}</span>
+              <span class="more__outcome-text">{{ p.delta?.after ?? p.summary }}</span>
+            </span>
+
+            <span class="more__go" aria-hidden="true">
+              <AppIcon name="arrow-right" :size="15" />
+            </span>
+          </button>
+        </li>
+      </ol>
     </div>
 
     <Teleport to="body">
@@ -118,23 +136,15 @@ const openProject = ref<Project | null>(null)
   color: var(--ink-2);
 }
 
-.spreads {
+/* ---- Флагманский кейс ---- */
+.lead-case {
   margin-top: clamp(2rem, 5vw, 3.5rem);
-  border-top: var(--rule) solid var(--ink);
-}
-
-.spread {
-  border-bottom: var(--rule) solid var(--line);
   padding-block: clamp(1.75rem, 4vw, 3rem);
-}
-
-/* Ведущий кейс на подложке — единственное визуальное выделение. */
-.spread--lead {
   background: var(--paper-2);
-  border-bottom-color: var(--ink);
+  border-block: var(--rule) solid var(--ink);
 }
 
-.spread__inner {
+.lead-case__inner {
   display: grid;
   gap: clamp(1.5rem, 4vw, 3rem);
   align-items: start;
@@ -144,20 +154,7 @@ const openProject = ref<Project | null>(null)
   }
 }
 
-/* Чётные развороты переворачиваются — страница не превращается
-   в монотонный список одинаковых блоков. */
-.spread--flip .spread__inner {
-  @include up($bp-lg) {
-    .spread__text {
-      order: 2;
-    }
-    .spread__dia {
-      order: 1;
-    }
-  }
-}
-
-.spread__meta {
+.lead-case__meta {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
@@ -170,33 +167,27 @@ const openProject = ref<Project | null>(null)
   text-transform: uppercase;
 }
 
-.spread__num {
+.lead-case__num {
   color: var(--accent);
   font-weight: 500;
 }
 
-.spread__kicker {
+.lead-case__kicker {
   color: var(--ink-3);
   margin-right: auto;
 }
 
-.spread__year {
+.lead-case__year {
   font-size: 0.6875rem;
   color: var(--ink-3);
 }
 
-.spread__name {
+.lead-case__name {
   margin-top: 0.9rem;
 }
 
-.spread__role {
-  margin-top: 0.4rem;
-  font-size: 0.75rem;
-  color: var(--ink-3);
-}
-
-.spread__summary {
-  margin-top: 1rem;
+.lead-case__summary {
+  margin-top: 0.85rem;
   max-width: 52ch;
 }
 
@@ -227,14 +218,8 @@ const openProject = ref<Project | null>(null)
   text-transform: uppercase;
 }
 
-.delta__sign {
-  font-weight: 500;
-}
-
 .delta__row--before {
-  .delta__tag {
-    color: var(--ink-3);
-  }
+  .delta__tag,
   .delta__text {
     color: var(--ink-3);
   }
@@ -246,6 +231,7 @@ const openProject = ref<Project | null>(null)
   }
   .delta__text {
     color: var(--ink);
+    font-weight: 500;
   }
 }
 
@@ -254,17 +240,17 @@ const openProject = ref<Project | null>(null)
   line-height: 1.45;
 }
 
-/* ---- Цифры кейса ---- */
+/* ---- Цифры ---- */
 .figures {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5rem 2.25rem;
+  gap: 1.25rem 2.25rem;
   margin-top: 1.5rem;
 }
 
 .figures__value {
   display: block;
-  @include fluid(font-size, 26, 38);
+  @include fluid(font-size, 24, 34);
   color: var(--ink);
 }
 
@@ -278,24 +264,15 @@ const openProject = ref<Project | null>(null)
   color: var(--ink-3);
 }
 
-.spread__stack {
-  margin-top: 1.5rem;
-  padding-top: 0.75rem;
-  border-top: var(--rule) solid var(--line);
-  font-size: 0.6875rem;
-  letter-spacing: 0.04em;
-  color: var(--ink-3);
-}
-
-.spread__actions {
+.lead-case__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 1rem;
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
 }
 
-.spread__link {
+.lead-case__link {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -305,13 +282,95 @@ const openProject = ref<Project | null>(null)
   text-transform: uppercase;
 }
 
-/* Вывод под чертежом — курсивная выноска, как подпись к иллюстрации. */
-.spread__takeaway {
+.lead-case__takeaway {
   margin-top: 0.9rem;
   padding-left: 0.9rem;
   border-left: var(--rule-bold) solid var(--accent);
   font-style: italic;
   font-size: 0.9375rem;
   color: var(--ink-2);
+}
+
+/* ---- Остальные кейсы ---- */
+.more__label {
+  margin-top: clamp(2rem, 4vw, 2.75rem);
+  padding-bottom: 0.5rem;
+  border-bottom: var(--rule-bold) solid var(--ink);
+}
+
+.more__row {
+  border-bottom: var(--rule) solid var(--line);
+}
+
+/* Вся строка — одна кнопка: цель клика должна совпадать с тем,
+   что читается как кликабельное. */
+.more__btn {
+  display: grid;
+  gap: 0.5rem 1.5rem;
+  width: 100%;
+  padding: clamp(0.9rem, 2vw, 1.25rem) 0;
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease);
+
+  @include up($bp-lg) {
+    grid-template-columns: 2.25rem minmax(0, 15rem) minmax(0, 1fr) 1.5rem;
+    align-items: baseline;
+  }
+
+  &:hover {
+    background: var(--paper-2);
+
+    .more__go {
+      color: var(--accent);
+      transform: translateX(3px);
+    }
+  }
+}
+
+.more__num {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--accent);
+}
+
+.more__name {
+  display: block;
+}
+
+.more__kicker {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.more__outcome-tag {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.more__outcome-text {
+  display: block;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.more__go {
+  justify-self: end;
+  color: var(--ink-3);
+  transition: color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+
+  @include down($bp-lg) {
+    display: none;
+  }
 }
 </style>

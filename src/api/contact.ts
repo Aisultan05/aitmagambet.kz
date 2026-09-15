@@ -1,10 +1,6 @@
 /** Клиент формы. Единственное место, которое знает про эндпоинт. */
 
-export const WHATSAPP_ENDPOINT = import.meta.env.VITE_API_ENDPOINT || '/api/whatsapp.php'
-
-/** Ссылка «написать напрямую» идёт через редирект на сервере,
- *  чтобы номер телефона не лежал в разметке и не достался парсерам. */
-export const WHATSAPP_DIRECT_URL = `${WHATSAPP_ENDPOINT}?go=wa`
+export const CONTACT_ENDPOINT = import.meta.env.VITE_API_ENDPOINT || '/api/contact.php'
 
 export interface FormPayload {
   name: string
@@ -20,15 +16,12 @@ export interface SendResult {
   kind?: SendErrorKind
   /** Ошибки по полям, когда сервер их вернул. */
   fields?: Record<string, string>
-  /** Гостю ушло подтверждение в WhatsApp. */
-  confirmation?: boolean
 }
 
 interface ApiResponse {
   ok?: boolean
   error?: string
   fields?: Record<string, string>
-  confirmation?: boolean
 }
 
 /** Ошибки сервера — в понятные фронту категории. */
@@ -42,13 +35,13 @@ function classify(status: number, error?: string): SendErrorKind {
   return 'server'
 }
 
-export async function sendToWhatsApp(
+export async function sendMessage(
   payload: FormPayload,
   /** Секунд с момента открытия формы — отсекает мгновенные отправки ботами. */
   elapsedSeconds: number,
 ): Promise<SendResult> {
   try {
-    const response = await fetch(WHATSAPP_ENDPOINT, {
+    const response = await fetch(CONTACT_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -62,15 +55,9 @@ export async function sendToWhatsApp(
 
     const data = (await response.json().catch(() => ({}))) as ApiResponse
 
-    if (response.ok && data.ok) {
-      return { ok: true, confirmation: data.confirmation }
-    }
+    if (response.ok && data.ok) return { ok: true }
 
-    return {
-      ok: false,
-      kind: classify(response.status, data.error),
-      fields: data.fields,
-    }
+    return { ok: false, kind: classify(response.status, data.error), fields: data.fields }
   } catch {
     // Сеть недоступна или ответ не JSON — до сервера мы не дошли.
     return { ok: false, kind: 'network' }

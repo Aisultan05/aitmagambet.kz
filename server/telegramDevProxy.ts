@@ -3,21 +3,18 @@ import { resolve } from 'node:path'
 import type { Plugin } from 'vite'
 
 /**
- * Dev-версия эндпоинта api/whatsapp.php.
+ * Dev-версия эндпоинта api/contact.php.
  *
- * В продакшене форму обслуживает PHP; локально PHP может быть не поднят,
- * поэтому `npm run dev` отвечает на тот же путь тем же контрактом.
- * Читает те же api/.env, чтобы не держать конфиг в двух местах.
+ * В продакшене форму обслуживает PHP (или функция Cloudflare); локально PHP
+ * может быть не поднят, поэтому `npm run dev` отвечает на тот же путь тем же
+ * контрактом. Читает те же api/.env, чтобы не держать конфиг в двух местах.
  */
 
-const ENDPOINT = '/api/whatsapp.php'
+const ENDPOINT = '/api/contact.php'
 
 interface Config {
-  host: string
-  id: string
   token: string
-  phone: string
-  confirmation: boolean
+  chatId: string
 }
 
 function loadEnv(root: string): Config {
@@ -36,11 +33,8 @@ function loadEnv(root: string): Config {
   }
 
   return {
-    host: (values.GREEN_API_HOST || 'https://api.green-api.com').replace(/\/+$/, ''),
-    id: values.GREEN_API_ID ?? '',
-    token: values.GREEN_API_TOKEN ?? '',
-    phone: (values.OWNER_PHONE ?? '').replace(/\D+/g, ''),
-    confirmation: values.SEND_CONFIRMATION === '1',
+    token: values.TELEGRAM_BOT_TOKEN ?? '',
+    chatId: values.TELEGRAM_CHAT_ID ?? '',
   }
 }
 
@@ -56,38 +50,45 @@ function readBody(req: import('node:http').IncomingMessage): Promise<string> {
   })
 }
 
-async function sendMessage(cfg: Config, chat: string, message: string): Promise<boolean> {
-  const url = `${cfg.host}/waInstance${cfg.id}/sendMessage/${cfg.token}`
+function esc(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
 
+async function sendMessage(cfg: Config, text: string): Promise<boolean> {
   try {
-    const res = await fetch(url, {
+    const res = await fetch(`https://api.telegram.org/bot${cfg.token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId: `${chat}@c.us`, message }),
+      body: JSON.stringify({
+        chat_id: cfg.chatId,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      }),
     })
     if (!res.ok) {
-      console.warn(`[green-api] ${res.status} ${await res.text()}`)
+      console.warn(`[telegram] ${res.status} ${await res.text()}`)
       return false
     }
-    const json = (await res.json()) as { idMessage?: string }
-    return Boolean(json.idMessage)
+    const json = (await res.json()) as { ok?: boolean }
+    return Boolean(json.ok)
   } catch (error) {
-    console.warn('[green-api] request failed:', error)
+    console.warn('[telegram] request failed:', error)
     return false
   }
 }
 
-export function greenApiDevProxy(): Plugin {
+export function telegramDevProxy(): Plugin {
   return {
-    name: 'green-api-dev-proxy',
+    name: 'telegram-dev-proxy',
     apply: 'serve',
 
     configureServer(server) {
       const cfg = loadEnv(server.config.root)
 
-      if (!cfg.id || !cfg.token || !cfg.phone) {
+      if (!cfg.token || !cfg.chatId) {
         server.config.logger.warn(
-          '[green-api] api/.env не заполнен — форма вернёт not_configured. ' +
+          '[telegram] api/.env не заполнен — форма вернёт not_configured. ' +
             'Скопируйте api/.env.example в api/.env.',
         )
       }
@@ -99,23 +100,8 @@ export function greenApiDevProxy(): Plugin {
           res.end(JSON.stringify(payload))
         }
 
-        // Редирект на wa.me — тот же контракт, что у PHP-версии.
-        if (req.method === 'GET') {
-          if (!cfg.phone) return send(503, { ok: false, error: 'not_configured' })
-          res.statusCode = 302
-          res.setHeader(
-            'Location',
-            `https://wa.me/${cfg.phone}?text=${encodeURIComponent(
-              'Здравствуйте! Пишу с сайта портфолио.',
-            )}`,
-          )
-          return res.end()
-        }
-
         if (req.method !== 'POST') return send(405, { ok: false, error: 'method_not_allowed' })
-        if (!cfg.id || !cfg.token || !cfg.phone) {
-          return send(503, { ok: false, error: 'not_configured' })
-        }
+        if (!cfg.token || !cfg.chatId) return send(503, { ok: false, error: 'not_configured' })
 
         let input: Record<string, unknown>
         try {
@@ -148,33 +134,22 @@ export function greenApiDevProxy(): Plugin {
         }
 
         const text = [
-          '📩 *Новое сообщение с портфолио* (dev)',
+          '📩 <b>Новое сообщение с портфолио</b> (dev)',
           '',
-          `*Имя:* ${data.name}`,
-          `*Тема:* ${data.topic}`,
-          `*Контакт:* ${data.contact}`,
+          `<b>Имя:</b> ${esc(data.name)}`,
+          `<b>Тема:</b> ${esc(data.topic)}`,
+          `<b>Контакт:</b> ${esc(data.contact)}`,
           '',
-          '*Сообщение:*',
-          data.message,
+          '<b>Сообщение:</b>',
+          esc(data.message),
           '',
-          '—',
-          `Страница: ${data.page}`,
+          `<code>${esc(data.page)}</code>`,
         ].join('\n')
 
-        const ok = await sendMessage(cfg, cfg.phone, text)
+        const ok = await sendMessage(cfg, text)
         if (!ok) return send(502, { ok: false, error: 'send_failed' })
 
-        let confirmation = false
-        const visitor = data.contact.replace(/\D+/g, '')
-        if (cfg.confirmation && visitor.length >= 10 && visitor !== cfg.phone) {
-          confirmation = await sendMessage(
-            cfg,
-            visitor,
-            `Здравствуйте, ${data.name}! Ваше сообщение с сайта дошло — отвечу в течение дня.`,
-          )
-        }
-
-        return send(200, { ok: true, confirmation })
+        return send(200, { ok: true })
       })
     },
   }

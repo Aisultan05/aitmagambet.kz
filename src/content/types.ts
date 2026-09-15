@@ -143,6 +143,8 @@ export interface Content {
     open: string
     close: string
     liveSite: string
+    moreTitle: string
+    outcome: string
     before: string
     after: string
     viewPhoto: string

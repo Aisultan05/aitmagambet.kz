@@ -2,10 +2,10 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import AppIcon from './AppIcon.vue'
 import { useI18n } from '@/composables/useI18n'
-import { sendToWhatsApp, WHATSAPP_DIRECT_URL } from '@/api/whatsapp'
+import { sendMessage } from '@/api/contact'
 
 /** Бланк заявки: поля на подчёркиваниях, подписи в моно, печатная кнопка.
- *  Уходит прямо в WhatsApp через Green API — токен остаётся на сервере. */
+ *  Уходит мне в Telegram через Bot API — токен остаётся на сервере. */
 
 const { t } = useI18n()
 
@@ -15,7 +15,6 @@ const form = reactive({ name: '', contact: '', topic: '', message: '' })
 const errors = reactive<Record<string, string>>({})
 const status = ref<Status>('idle')
 const serverError = ref('')
-const confirmationSent = ref(false)
 
 /** Момент открытия формы — по нему считаем, не бот ли отправил её мгновенно. */
 let openedAt = Date.now()
@@ -48,7 +47,7 @@ async function submit() {
 
   status.value = 'sending'
 
-  const result = await sendToWhatsApp(
+  const result = await sendMessage(
     {
       name: form.name.trim(),
       contact: form.contact.trim(),
@@ -60,7 +59,6 @@ async function submit() {
 
   if (result.ok) {
     status.value = 'sent'
-    confirmationSent.value = Boolean(result.confirmation)
     return
   }
 
@@ -154,11 +152,7 @@ onMounted(() => {
           <div v-if="status === 'sent'" class="done">
             <p class="done__stamp">{{ t.contact.form.ok.title }}</p>
             <p class="serif done__text">{{ t.contact.form.ok.text }}</p>
-            <p v-if="confirmationSent" class="done__extra data">
-              <AppIcon name="whatsapp" :size="13" />
-              {{ t.contact.form.contactHint }}
-            </p>
-            <button class="btn btn--sm" @click="reset">{{ t.contact.form.ok.again }}</button>
+              <button class="btn btn--sm" @click="reset">{{ t.contact.form.ok.again }}</button>
           </div>
 
           <form v-else class="form" novalidate @submit.prevent="submit">
@@ -249,7 +243,7 @@ onMounted(() => {
 
             <a
               class="link form__direct"
-              :href="WHATSAPP_DIRECT_URL"
+              :href="t.contact.channels.find((c) => c.id === 'telegram')?.href"
               target="_blank"
               rel="noopener noreferrer"
             >

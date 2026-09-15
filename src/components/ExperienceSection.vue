@@ -7,7 +7,9 @@ import { useI18n } from '@/composables/useI18n'
  *  Строка раскрывается на месте — вместо таймлайна с точками и свечением. */
 
 const { t } = useI18n()
-const open = ref<Set<number>>(new Set([0]))
+// Свёрнуты по умолчанию: на полосе остаётся сводка и главное достижение,
+// список задач разворачивается по требованию
+const open = ref<Set<number>>(new Set())
 
 function toggle(i: number) {
   const next = new Set(open.value)

@@ -269,6 +269,8 @@ export const en: Content = {
     open: 'Open case',
     close: 'Close',
     liveSite: 'Live site',
+    moreTitle: 'Other cases',
+    outcome: 'Outcome',
     before: 'Before',
     after: 'After',
     viewPhoto: 'Site',
@@ -279,8 +281,8 @@ export const en: Content = {
         image: '/shots/svoydom.jpg',
         imageAlt: 'svoydom.kz home page: new-build catalog and developer offers',
         delta: {
-          before: 'The catalog filter gave search engines no pages at all. Releases were manual SSH uploads.',
-          after: 'Every filter combination became an indexable page. A release is a push to GitLab, hands off after that.',
+          before: 'Bugs in production and not a single commit in history — there was no version control at all, releases were manual SSH uploads. The catalog filter gave search engines no pages.',
+          after: 'A competitive product: a catalog of 1,250+ listings, every filter combination an indexable page, releases through GitLab CI instead of manual uploads.',
         },
         title: 'svoydom.kz',
         kicker: 'A “supermarket” for real estate',
@@ -288,13 +290,22 @@ export const en: Content = {
         role: 'Fullstack · current version of the site is mine',
         featured: true,
         summary:
-          'A marketplace for new-build housing in Astana and Almaty. Apartment and complex catalog with a faceted filter, an SEO system built around that filter, a second site on the same core, and automated deployment. Everything is here: frontend, server-side logic, SEO as engineering, infrastructure and security.',
+          'A marketplace for new-build housing in Astana and Almaty. I inherited the site as it was: bugs in production, no change history, manual uploads. I brought it to a competitive level and took releases off manual control.',
         metrics: [
           { value: '1,250+', label: 'listings in the catalog' },
+          { value: 'GitLab CI', label: 'instead of SSH uploads' },
           { value: '2', label: 'sites on one core' },
-          { value: 'CI/CD', label: 'instead of manual releases' },
         ],
         blocks: [
+          {
+            title: 'What I inherited',
+            items: [
+              'Bugs in production',
+              'No version control — no change history and no way to roll back',
+              'Releases uploaded to production by hand over SSH',
+              'The catalog was closed to search engines',
+            ],
+          },
           {
             title: 'Frontend and catalog',
             items: [
@@ -343,7 +354,7 @@ export const en: Content = {
         stack: ['1C-Bitrix', 'PHP 8', 'Vue 3', 'TypeScript', 'MySQL', 'GitLab CI/CD', 'Ansible', 'nginx'],
         links: [{ label: 'svoydom.kz', href: 'https://svoydom.kz' }],
         takeaway:
-          'Releases stopped being a manual operation, and the filter stopped being a dead end for crawlers. Two very different kinds of work — both mine.',
+          'The project arrived without a single commit in its history. A release is now a push, and the filter stopped being a dead end for crawlers.',
       },
       {
         id: 'a11y',
@@ -628,9 +639,9 @@ export const en: Content = {
 
   contact: {
     kicker: 'Contact',
-    heading: 'Message me — I answer on WhatsApp',
+    heading: 'Message me — I answer on Telegram',
     lead:
-      'The form below sends your message straight to my WhatsApp through Green API. No mail queue — I see it immediately.',
+      'The form below sends your message straight to my Telegram. No mail queue — I see it immediately.',
     channels: [
       {
         id: 'email',
@@ -654,7 +665,7 @@ export const en: Content = {
       title: 'What happens next',
       steps: [
         {
-          title: 'Your message lands in my WhatsApp',
+          title: 'Your message lands in my Telegram',
           text: 'Not in an inbox I open once a day — straight into the messenger.',
         },
         {
@@ -668,24 +679,24 @@ export const en: Content = {
       ],
     },
     form: {
-      title: 'Message via WhatsApp',
-      subtitle: 'Through Green API · arrives in seconds',
+      title: 'Message via Telegram',
+      subtitle: 'Arrives in seconds',
       name: 'Your name',
       namePlaceholder: 'Name and company',
       contactField: 'How to reach you',
       contactPlaceholder: '+7 700 000-00-00 or email',
-      contactHint: 'Give a WhatsApp number and I will send a confirmation there too',
+      contactHint: 'A phone number or an email — whichever suits you',
       topic: 'Topic',
       topics: ['Job opening', 'Freelance project', 'Consulting', 'Security audit', 'Something else'],
       message: 'Message',
       messagePlaceholder: 'Briefly: the task, the timeline, the stack',
-      submit: 'Send to WhatsApp',
+      submit: 'Send',
       sending: 'Sending…',
       consent: 'By submitting this form you agree that I may use the contact details you gave to reply.',
-      directLink: 'Or message me directly on WhatsApp',
+      directLink: 'Or message me directly on Telegram',
       ok: {
         title: 'Message sent',
-        text: 'It is already in my WhatsApp. I reply within a day, usually sooner.',
+        text: 'It is already in my Telegram. I reply within a day, usually sooner.',
         again: 'Send another',
       },
       errors: {
@@ -695,14 +706,14 @@ export const en: Content = {
         generic: 'Sending failed. Try again, or email me instead.',
         rate: 'Too many messages in a row. Give it a minute.',
         network: 'No connection to the server. Check your internet, or email me.',
-        notConfigured: 'The form is not connected to WhatsApp yet. Email or Telegram works.',
+        notConfigured: 'The form is not connected yet. Email or Telegram works.',
       },
     },
   },
 
   footer: {
     setIn: 'Set in',
-    built: 'Built with Vue 3 + TypeScript + Vite. The form runs on PHP and Green API.',
+    built: 'Built with Vue 3 + TypeScript + Vite. The form runs on PHP and the Telegram Bot API.',
     source: 'Source code',
     rights: 'Aisultan Aitmagambetuly',
     backToTop: 'Back to top',

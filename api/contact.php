@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 /**
- * Отправка сообщений с формы портфолио в WhatsApp через Green API.
+ * Отправка сообщений с формы портфолио в Telegram через Bot API.
  *
- * POST /api/whatsapp.php  — принимает JSON формы и отправляет сообщение мне.
- * GET  /api/whatsapp.php?go=wa — редирект на wa.me, чтобы номер не лежал в HTML.
+ * POST /api/contact.php — принимает JSON формы и шлёт сообщение мне в Telegram.
  *
- * Токен Green API читается из .env рядом со скриптом и никогда не уходит
- * в ответ клиенту. Настройки — в api/.env (см. .env.example).
+ * Почему бот, а не шлюз к WhatsApp: токен бота даёт доступ только к самому боту.
+ * Личная переписка ему недоступна, привязывать аккаунт не нужно, блокировать
+ * нечего. Токен читается из .env рядом со скриптом и наружу не уходит.
  */
 
 // ---------------------------------------------------------------------------
@@ -17,13 +17,10 @@ declare(strict_types=1);
 // ---------------------------------------------------------------------------
 
 const CONFIG_DEFAULTS = [
-    'GREEN_API_HOST'      => 'https://api.green-api.com',
-    'GREEN_API_ID'        => '',
-    'GREEN_API_TOKEN'     => '',
-    // Номер получателя — только цифры, с кодом страны: 77077238960
-    'OWNER_PHONE'         => '',
-    // Подтверждение отправителю, если он оставил номер WhatsApp
-    'SEND_CONFIRMATION'   => '0',
+    // Токен от @BotFather, вида 123456789:AAH...
+    'TELEGRAM_BOT_TOKEN'  => '',
+    // Куда приходят заявки: chat_id владельца (узнаётся через @userinfobot)
+    'TELEGRAM_CHAT_ID'    => '',
     // Сколько сообщений с одного IP за окно
     'RATE_LIMIT'          => '3',
     'RATE_WINDOW_SECONDS' => '600',
@@ -89,27 +86,7 @@ function logLine(array $config, string $message): void
     if ($file === '') {
         return;
     }
-    $line = sprintf("[%s] %s\n", date('c'), $message);
-    @file_put_contents($file, $line, FILE_APPEND | LOCK_EX);
-}
-
-/** Только цифры: Green API ждёт chatId вида 77077238960@c.us. */
-function normalizePhone(string $raw): string
-{
-    $digits = preg_replace('/\D+/', '', $raw) ?? '';
-
-    // Локальная казахстанская запись 8XXXXXXXXXX → 7XXXXXXXXXX
-    if (strlen($digits) === 11 && str_starts_with($digits, '8')) {
-        $digits = '7' . substr($digits, 1);
-    }
-
-    return $digits;
-}
-
-function looksLikePhone(string $raw): bool
-{
-    $digits = normalizePhone($raw);
-    return strlen($digits) >= 10 && strlen($digits) <= 15;
+    @file_put_contents($file, sprintf("[%s] %s\n", date('c'), $message), FILE_APPEND | LOCK_EX);
 }
 
 function clientIp(): string
@@ -128,7 +105,7 @@ function clientIp(): string
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 }
 
-/** Убирает управляющие символы и подрезает длину — в WhatsApp уходит чистый текст. */
+/** Убирает управляющие символы и подрезает длину. */
 function cleanText(mixed $value, int $maxLength): string
 {
     if (!is_string($value)) {
@@ -143,6 +120,22 @@ function cleanText(mixed $value, int $maxLength): string
     return $text;
 }
 
+/**
+ * Экранирование под parse_mode=HTML.
+ * Telegram принимает только ограниченный набор тегов, всё остальное
+ * должно быть экранировано, иначе сообщение отклоняется целиком.
+ */
+function esc(string $text): string
+{
+    return htmlspecialchars($text, ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+function looksLikePhone(string $raw): bool
+{
+    $digits = preg_replace('/\D+/', '', $raw) ?? '';
+    return strlen($digits) >= 10 && strlen($digits) <= 15;
+}
+
 // ---------------------------------------------------------------------------
 // Ограничение частоты — файловое, без БД
 // ---------------------------------------------------------------------------
@@ -152,9 +145,8 @@ function rateLimitExceeded(array $config, string $ip): bool
     $limit = max(1, (int) $config['RATE_LIMIT']);
     $window = max(30, (int) $config['RATE_WINDOW_SECONDS']);
 
-    $dir = sys_get_temp_dir() . '/portfolio-wa-rate';
+    $dir = sys_get_temp_dir() . '/portfolio-contact-rate';
     if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
-        // Не смогли создать хранилище — пропускаем запрос, но пишем в лог.
         logLine($config, 'rate-limit storage unavailable');
         return false;
     }
@@ -204,24 +196,25 @@ function rateLimitExceeded(array $config, string $ip): bool
 }
 
 // ---------------------------------------------------------------------------
-// Green API
+// Telegram Bot API
 // ---------------------------------------------------------------------------
 
 /**
  * @return array{ok: bool, status: int, body: string}
  */
-function greenApiSend(array $config, string $phone, string $message): array
+function telegramSend(array $config, string $text): array
 {
     $url = sprintf(
-        '%s/waInstance%s/sendMessage/%s',
-        rtrim($config['GREEN_API_HOST'], '/'),
-        rawurlencode($config['GREEN_API_ID']),
-        rawurlencode($config['GREEN_API_TOKEN'])
+        'https://api.telegram.org/bot%s/sendMessage',
+        $config['TELEGRAM_BOT_TOKEN']
     );
 
     $payload = json_encode([
-        'chatId'  => $phone . '@c.us',
-        'message' => $message,
+        'chat_id'                  => $config['TELEGRAM_CHAT_ID'],
+        'text'                     => $text,
+        'parse_mode'               => 'HTML',
+        // Ссылка на страницу в подписи не должна разворачиваться в превью.
+        'disable_web_page_preview' => true,
     ], JSON_UNESCAPED_UNICODE);
 
     $ch = curl_init($url);
@@ -245,45 +238,29 @@ function greenApiSend(array $config, string $phone, string $message): array
         return ['ok' => false, 'status' => 0, 'body' => $error];
     }
 
-    // Успех — 200 и idMessage в ответе.
     $decoded = json_decode((string) $body, true);
-    $ok = $status === 200 && is_array($decoded) && !empty($decoded['idMessage']);
+    $ok = $status === 200 && is_array($decoded) && ($decoded['ok'] ?? false) === true;
 
     return ['ok' => $ok, 'status' => $status, 'body' => (string) $body];
 }
 
-function buildOwnerMessage(array $data, string $ip): string
+function buildMessage(array $data, string $ip): string
 {
     $lines = [
-        '📩 *Новое сообщение с портфолио*',
+        '📩 <b>Новое сообщение с портфолио</b>',
         '',
-        '*Имя:* ' . $data['name'],
-        '*Тема:* ' . $data['topic'],
-        '*Контакт:* ' . $data['contact'],
+        '<b>Имя:</b> ' . esc($data['name']),
+        '<b>Тема:</b> ' . esc($data['topic']),
+        '<b>Контакт:</b> ' . esc($data['contact']),
         '',
-        '*Сообщение:*',
-        $data['message'],
+        '<b>Сообщение:</b>',
+        esc($data['message']),
         '',
-        '—',
-        'Страница: ' . $data['page'],
-        'Время: ' . date('d.m.Y H:i') . ' (сервер)',
-        'IP: ' . $ip,
+        '<code>' . esc($data['page']) . '</code>',
+        '<code>' . date('d.m.Y H:i') . ' · ' . esc($ip) . '</code>',
     ];
 
     return implode("\n", $lines);
-}
-
-function buildVisitorMessage(array $data): string
-{
-    return implode("\n", [
-        'Здравствуйте, ' . $data['name'] . '!',
-        '',
-        'Это Айсултан — ваше сообщение с сайта дошло, я его получил.',
-        'Отвечу в течение дня, обычно быстрее.',
-        '',
-        'Ваше сообщение:',
-        '«' . mb_substr($data['message'], 0, 300) . '»',
-    ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -307,26 +284,12 @@ if ($method === 'OPTIONS') {
     exit;
 }
 
-// --- Редирект на WhatsApp: номер остаётся на сервере, в HTML его нет. ------
-if ($method === 'GET' && ($_GET['go'] ?? '') === 'wa') {
-    $phone = normalizePhone($config['OWNER_PHONE']);
-    if ($phone === '') {
-        jsonResponse(503, ['ok' => false, 'error' => 'not_configured']);
-    }
-
-    $text = rawurlencode('Здравствуйте! Пишу с сайта портфолио.');
-    header('Location: https://wa.me/' . $phone . '?text=' . $text, true, 302);
-    exit;
-}
-
 if ($method !== 'POST') {
     jsonResponse(405, ['ok' => false, 'error' => 'method_not_allowed']);
 }
 
-// --- Конфигурация на месте? ------------------------------------------------
-if ($config['GREEN_API_ID'] === '' || $config['GREEN_API_TOKEN'] === ''
-    || normalizePhone($config['OWNER_PHONE']) === '') {
-    logLine($config, 'request rejected: Green API is not configured');
+if ($config['TELEGRAM_BOT_TOKEN'] === '' || $config['TELEGRAM_CHAT_ID'] === '') {
+    logLine($config, 'request rejected: Telegram bot is not configured');
     jsonResponse(503, ['ok' => false, 'error' => 'not_configured']);
 }
 
@@ -393,33 +356,18 @@ if ($data['topic'] === '') {
 }
 
 // --- Отправка --------------------------------------------------------------
-$owner = normalizePhone($config['OWNER_PHONE']);
-$result = greenApiSend($config, $owner, buildOwnerMessage($data, $ip));
+$result = telegramSend($config, buildMessage($data, $ip));
 
 if (!$result['ok']) {
     logLine($config, sprintf(
-        'Green API send failed: status=%d body=%s',
+        'Telegram send failed: status=%d body=%s',
         $result['status'],
         substr($result['body'], 0, 500)
     ));
-    // Детали Green API наружу не отдаём — только факт неудачи.
+    // Детали Telegram наружу не отдаём — только факт неудачи.
     jsonResponse(502, ['ok' => false, 'error' => 'send_failed']);
-}
-
-// Подтверждение отправителю — только если он оставил номер и это включено.
-$confirmationSent = false;
-if ($config['SEND_CONFIRMATION'] === '1' && looksLikePhone($data['contact'])) {
-    $visitor = normalizePhone($data['contact']);
-    if ($visitor !== $owner) {
-        $confirm = greenApiSend($config, $visitor, buildVisitorMessage($data));
-        $confirmationSent = $confirm['ok'];
-        if (!$confirm['ok']) {
-            // Не ошибка формы: у гостя может просто не быть WhatsApp.
-            logLine($config, 'confirmation not delivered to ' . $visitor);
-        }
-    }
 }
 
 logLine($config, 'message delivered from ' . $ip);
 
-jsonResponse(200, ['ok' => true, 'confirmation' => $confirmationSent]);
+jsonResponse(200, ['ok' => true]);

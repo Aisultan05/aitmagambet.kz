@@ -30,11 +30,13 @@ function go(id: string) {
         </span>
       </div>
 
-      <h1 class="mast__name masthead-type">
-        <span v-for="(line, i) in nameLines()" :key="line" class="mast__line" :style="{ '--i': i }">
-          {{ line }}
-        </span>
-      </h1>
+      <div class="mast__namebox">
+        <h1 class="mast__name masthead-type">
+          <span v-for="(line, i) in nameLines()" :key="line" class="mast__line" :style="{ '--i': i }">
+            {{ line }}
+          </span>
+        </h1>
+      </div>
 
       <p class="mast__roles">
         <span v-for="(role, i) in t.hero.roles" :key="role" class="mast__role">
@@ -117,6 +119,19 @@ function go(id: string) {
 }
 
 /* ---- Имя ---- */
+
+/* Кегль имени считается от ширины полосы набора, а не от окна: полоса
+   упирается в max-width 1180px, а vw продолжает расти — из-за этого
+   на увеличенном шрифте «AITMAGAMBETULY» вылезало за край.
+   cqw знает реальную ширину контейнера, поэтому запас держится всегда. */
+.mast__namebox {
+  container-type: inline-size;
+}
+
+.mast__namebox .mast__name {
+  font-size: min(clamp(2.75rem, 2.75rem + 72 * ((100vw - 380px) / 900), 7.25rem), 9.6cqw);
+}
+
 .mast__name {
   display: flex;
   flex-direction: column;
