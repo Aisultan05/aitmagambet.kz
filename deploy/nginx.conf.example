@@ -1,0 +1,81 @@
+# Пример конфигурации nginx для портфолио.
+# Путь до сокета PHP-FPM уточните под свою версию: php8.1-fpm, php8.2-fpm и т.д.
+
+server {
+    listen 80;
+    server_name aitmagambet.kz www.aitmagambet.kz;
+    return 301 https://aitmagambet.kz$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name www.aitmagambet.kz;
+
+    ssl_certificate     /etc/letsencrypt/live/aitmagambet.kz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/aitmagambet.kz/privkey.pem;
+
+    return 301 https://aitmagambet.kz$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name aitmagambet.kz;
+
+    root /var/www/portfolio;
+    index index.html;
+    charset utf-8;
+
+    ssl_certificate     /etc/letsencrypt/live/aitmagambet.kz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/aitmagambet.kz/privkey.pem;
+
+    # --- Безопасность ------------------------------------------------------
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # Шрифты Google — единственный внешний источник в проекте.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'" always;
+
+    # .env с токеном Green API не должен отдаваться никогда
+    location ~ /\.(env|git|ht) {
+        deny all;
+        return 404;
+    }
+
+    # --- PHP-эндпоинт формы ------------------------------------------------
+    location ~ ^/api/[a-z0-9_-]+\.php$ {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_read_timeout 30s;
+    }
+
+    # PHP больше нигде не исполняется
+    location ~ \.php$ {
+        return 404;
+    }
+
+    # --- Статика -----------------------------------------------------------
+    # Имена файлов содержат хеш сборки, поэтому кэшируем надолго
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    # SPA: все маршруты отдают один HTML
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    gzip on;
+    gzip_types text/css application/javascript image/svg+xml application/json;
+    gzip_min_length 512;
+}

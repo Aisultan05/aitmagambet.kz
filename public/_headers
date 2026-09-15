@@ -1,0 +1,19 @@
+# Заголовки для Cloudflare Pages. Повторяют то, что настроено для nginx
+# в deploy/nginx.conf.example — чтобы бесплатный хостинг не был слабее своего.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'
+
+# Имена файлов содержат хеш сборки — можно кэшировать надолго
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/shots/*
+  Cache-Control: public, max-age=2592000
+
+/index.html
+  Cache-Control: no-cache

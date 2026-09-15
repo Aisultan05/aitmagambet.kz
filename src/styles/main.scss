@@ -1,0 +1,522 @@
+/* ==========================================================================
+   «Печатное досье инженера».
+
+   Язык страницы — не веб-дашборд, а типографская вёрстка: бумага, ink,
+   волосяные линейки, нулевые радиусы, строгая сетка. Карточек со свечением
+   здесь нет намеренно — структуру держат линейки и типографика.
+
+   Три темы (дневная / ночная / высокий контраст) переключаются
+   data-атрибутом на <html> из useA11y.
+   ========================================================================== */
+
+:root {
+  --font-scale: 1;
+
+  /* Golos Text — современная кириллическая гротеска, несёт масштаб заголовков.
+     Spectral — серифный голос лида и выносок. Plex Mono — все технические
+     подписи, маргиналии и данные. */
+  --font-display: 'Golos Text', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Golos Text', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font-serif: 'Spectral', Georgia, 'Times New Roman', serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+
+  /* Полоса набора уже, чем в вебе принято: длинная строка убивает чтение. */
+  --shell: 1180px;
+  --gutter: clamp(1.15rem, 4.5vw, 3.5rem);
+
+  /* Печать не знает скруглений. Переменная оставлена, чтобы поля ввода
+     и режим доступности не выбивались, если понадобится мягкость. */
+  --radius: 0px;
+
+  --rule: 1px;
+  --rule-bold: 2px;
+
+  --line-height: 1.6;
+  --letter-spacing: 0;
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 0.4s;
+  --dur-fast: 0.18s;
+
+  color-scheme: light;
+}
+
+/* --- Дневная тема: газетная бумага ---------------------------------------- */
+:root,
+:root[data-contrast='day'] {
+  --paper: #f1eee7;
+  --paper-2: #e9e5dc;
+  --paper-3: #ffffff;
+  --ink: #16150f;
+  --ink-2: #46433a;
+  --ink-3: #7d786b;
+  --line: rgba(22, 21, 15, 0.16);
+  --line-soft: rgba(22, 21, 15, 0.09);
+  --accent: #cf3617;
+  --accent-ink: #fff8f2;
+  --accent-soft: rgba(207, 54, 23, 0.09);
+  --marker: rgba(226, 188, 78, 0.34);
+  --ok: #2f6d3f;
+  --danger: #b5240c;
+  --grain: 0.055;
+  color-scheme: light;
+}
+
+/* --- Ночная тема: то же досье, отпечатанное на чёрном --------------------- */
+:root[data-contrast='night'] {
+  --paper: #14130f;
+  --paper-2: #1b1a15;
+  --paper-3: #100f0c;
+  --ink: #ece7db;
+  --ink-2: #b3ad9e;
+  --ink-3: #837d6e;
+  --line: rgba(236, 231, 219, 0.2);
+  --line-soft: rgba(236, 231, 219, 0.1);
+  --accent: #ff6a3d;
+  --accent-ink: #17140f;
+  --accent-soft: rgba(255, 106, 61, 0.13);
+  --marker: rgba(226, 188, 78, 0.22);
+  --ok: #6fbf7f;
+  --danger: #ff7a63;
+  --grain: 0.07;
+  color-scheme: dark;
+}
+
+/* --- Высокий контраст: чёрное с жёлтым, привычная схема госпорталов РК ----
+   Полутонов нет намеренно: --ink-2 и --ink-3 совпадают с --ink. */
+:root[data-contrast='high'] {
+  --paper: #000000;
+  --paper-2: #000000;
+  --paper-3: #000000;
+  --ink: #ffffff;
+  --ink-2: #ffffff;
+  --ink-3: #ffe873;
+  --line: #ffffff;
+  --line-soft: #ffffff;
+  --accent: #ffe000;
+  --accent-ink: #000000;
+  --accent-soft: rgba(255, 224, 0, 0.16);
+  --marker: rgba(255, 224, 0, 0.3);
+  --ok: #7dff9e;
+  --danger: #ff8a8a;
+  --grain: 0;
+  color-scheme: dark;
+}
+
+/* --- Интервалы (режим доступности) --------------------------------------- */
+:root[data-spacing='1'] {
+  --line-height: 1.9;
+  --letter-spacing: 0.03em;
+}
+:root[data-spacing='2'] {
+  --line-height: 2.15;
+  --letter-spacing: 0.07em;
+}
+
+/* --- Анимация выключена -------------------------------------------------- */
+:root[data-motion='off'] * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* --- Изображения выключены ----------------------------------------------- */
+:root[data-images='off'] {
+  .js-decor,
+  .grain {
+    display: none !important;
+  }
+  img,
+  svg.js-illustration {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Reset
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* --font-scale двигает базовый размер — вся вёрстка на rem едет за ним. */
+  font-size: calc(100% * var(--font-scale));
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: var(--line-height);
+  letter-spacing: var(--letter-spacing);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  overflow-wrap: break-word;
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+blockquote,
+dl,
+dd,
+table {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+/* ==========================================================================
+   Фокус
+   ========================================================================== */
+
+:focus-visible {
+  outline: var(--rule-bold) solid var(--accent);
+  outline-offset: 2px;
+}
+
+:root[data-contrast='high'] :focus-visible {
+  outline-width: 3px;
+}
+
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 200;
+  transform: translateY(-120%);
+  padding: 0.7rem 1.4rem;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  transition: transform var(--dur-fast) var(--ease);
+
+  &:focus {
+    transform: none;
+  }
+}
+
+.sr-only {
+  @include visually-hidden;
+}
+
+/* ==========================================================================
+   Типографика
+   ========================================================================== */
+
+/* Мастхед: имя во всю ширину полосы. Отрицательный трекинг обязателен —
+   без него Golos 900 на таком кегле рассыпается на буквы. */
+.masthead-type {
+  font-family: var(--font-display);
+  font-weight: 900;
+  @include fluid(font-size, 44, 132, $cap-vw: 11.5);
+  /* 1.06, а не 0.9: в кириллице бревис «Й» и точки «Ё» стоят выше
+     капительной высоты, и на плотном интерлиньяже они врезаются
+     в строку выше. Латиница такой проблемы не создаёт. */
+  line-height: 1.06;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-weight: 900;
+  @include fluid(font-size, 30, 62, $cap-vw: 9.5);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+}
+
+.headline--sm {
+  @include fluid(font-size, 22, 34, $cap-vw: 8);
+  letter-spacing: -0.03em;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  @include fluid(font-size, 18, 23);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+/* Серифный голос: лид, выноски, цитаты. Отделяет «речь автора»
+   от технических данных, набранных моно. */
+.lead-serif {
+  font-family: var(--font-serif);
+  @include fluid(font-size, 17, 22);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.serif {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.62;
+  color: var(--ink-2);
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.data {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+/* Цифры годового отчёта: табличные, чтобы не «плясали» при смене значения. */
+.figure {
+  font-family: var(--font-display);
+  font-weight: 900;
+  @include fluid(font-size, 34, 58);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.marker {
+  background: linear-gradient(to top, var(--marker) 0 42%, transparent 42%);
+  padding: 0 0.1em;
+}
+
+/* Ссылка в тексте: подчёркивание вермильоном, а не смена цвета текста —
+   читается на бумаге и не теряет контраст. */
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  transition: background-color var(--dur-fast) var(--ease);
+
+  &:hover {
+    background: var(--accent-soft);
+  }
+}
+
+/* ==========================================================================
+   Сетка и линейки
+   ========================================================================== */
+
+.shell {
+  width: 100%;
+  max-width: var(--shell);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.band {
+  position: relative;
+  @include fluid(padding-top, 52, 104);
+  @include fluid(padding-bottom, 52, 104);
+  scroll-margin-top: 4rem;
+  border-top: var(--rule) solid var(--line);
+}
+
+.band--tint {
+  background: var(--paper-2);
+}
+
+/* Шапка раздела: номер и название в моно на одной линейке —
+   как колонтитул печатного раздела. */
+.band__head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding-bottom: 0.65rem;
+  margin-bottom: clamp(1.5rem, 4vw, 2.75rem);
+  border-bottom: var(--rule-bold) solid var(--ink);
+}
+
+.band__num {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+}
+
+.band__name {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-right: auto;
+}
+
+.rule {
+  border: 0;
+  border-top: var(--rule) solid var(--line);
+  margin: 0;
+}
+
+.rule--bold {
+  border-top: var(--rule-bold) solid var(--ink);
+}
+
+/* ==========================================================================
+   Кнопки — печатные, без скруглений и заливок-градиентов
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.8rem 1.4rem;
+  border: var(--rule-bold) solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+
+  &:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn--solid {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+
+  &:hover {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+}
+
+.btn--sm {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.6875rem;
+}
+
+/* ==========================================================================
+   Появление по скроллу — сдержанное: печать не «выезжает»
+   ========================================================================== */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal.is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ==========================================================================
+   Зерно бумаги
+   ========================================================================== */
+
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: var(--grain);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+:root[data-contrast='high'] .grain {
+  display: none;
+}
+
+* {
+  scrollbar-color: var(--line) transparent;
+  scrollbar-width: thin;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}

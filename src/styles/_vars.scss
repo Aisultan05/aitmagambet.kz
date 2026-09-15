@@ -1,0 +1,102 @@
+@use 'sass:math';
+
+// Подключается автоматически во все SCSS через vite.config.ts (additionalData).
+// Здесь только то, что нужно на этапе компиляции: брейкпоинты и миксины.
+// Цвета живут в CSS-переменных (main.scss) — иначе три темы контраста
+// пришлось бы собирать в три отдельных сборки.
+
+$bp-sm: 480px;
+$bp-md: 768px;
+$bp-lg: 1024px;
+$bp-xl: 1280px;
+$bp-xxl: 1536px;
+
+/// Отдельный порог для шапки: семь пунктов меню по-русски плюс логотип,
+/// переключатель языка и кнопка CTA не влезают в 1024px — на меньшем
+/// экране навигация уходит в бургер.
+$bp-nav: 1120px;
+
+@mixin up($bp) {
+  @media (min-width: $bp) {
+    @content;
+  }
+}
+
+@mixin down($bp) {
+  @media (max-width: ($bp - 1px)) {
+    @content;
+  }
+}
+
+/// Плавная типографика без медиазапросов на каждый шаг.
+///
+/// Границы намеренно в rem, а не в px: html-font-size двигает --font-scale
+/// из режима доступности, и заголовки должны расти вместе с текстом —
+/// иначе увеличение шрифта не работает (WCAG 1.4.4).
+/// $cap-vw — необязательный потолок в vw. Нужен крупным заголовкам:
+/// нижняя граница задана в rem и растёт вместе с --font-scale, поэтому
+/// на узком экране при 140% строка иначе уезжает за край полосы.
+@mixin fluid($prop, $min, $max, $from: 380, $to: 1280, $cap-vw: null) {
+  // Границы — в rem, чтобы ехать за --font-scale.
+  // Наклон остаётся безразмерным множителем: `1rem * 1px` — невалидное
+  // произведение двух длин, и тогда clamp() отбрасывается целиком,
+  // а размер молча падает на дефолт браузера.
+  $min-rem: math.div($min, 16) * 1rem;
+  $max-rem: math.div($max, 16) * 1rem;
+  $slope: $max - $min;
+
+  $value: clamp(
+    #{$min-rem},
+    #{$min-rem} + #{$slope} * ((100vw - #{$from}px) / (#{$to} - #{$from})),
+    #{$max-rem}
+  );
+
+  @if $cap-vw {
+    #{$prop}: min(#{$value}, #{$cap-vw}vw);
+  } @else {
+    #{$prop}: $value;
+  }
+}
+
+/// Скрыть визуально, оставив для скринридеров.
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+/// Многоколоночный набор для длинного текста — как в журнале.
+@mixin columns($count, $gap: 2.25rem) {
+  column-count: $count;
+  column-gap: $gap;
+  /* Волосяная линейка между колонками вместо пустоты. */
+  column-rule: 1px solid var(--line-soft);
+}
+
+/// Буквица: первая литера абзаца в размер трёх строк.
+@mixin dropcap($lines: 3) {
+  &::first-letter {
+    float: left;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: #{$lines * 1.02}em;
+    line-height: 0.82;
+    margin: 0.06em 0.09em 0 0;
+    color: var(--accent);
+  }
+}
+
+/// Обрезка текста до N строк.
+@mixin clamp-lines($lines) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

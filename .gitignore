@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.local
+
+# Секреты Green API — только локально и на сервере
+api/.env
+api/*.log
+
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
