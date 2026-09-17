@@ -273,8 +273,6 @@ export const ru: Content = {
     outcome: 'Что дало',
     before: 'Было',
     after: 'Стало',
-    viewPhoto: 'Сайт',
-    viewScheme: 'Схема',
     items: [
       {
         id: 'svoydom',

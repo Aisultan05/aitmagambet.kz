@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import AppIcon from './AppIcon.vue'
-import SystemDiagram from './SystemDiagram.vue'
 import ProjectModal from './ProjectModal.vue'
 import { useI18n } from '@/composables/useI18n'
 import type { Project } from '@/content/types'
@@ -86,7 +85,9 @@ const openProject = ref<Project | null>(null)
         </div>
 
         <div class="lead-case__dia" v-reveal="100">
-          <SystemDiagram :variant="featured.id" :image="featured.image" :alt="featured.imageAlt" />
+          <figure v-if="featured.image" class="shot">
+            <img :src="featured.image" :alt="featured.imageAlt ?? ''" loading="lazy" />
+          </figure>
           <p v-if="featured.takeaway" class="lead-case__takeaway serif">{{ featured.takeaway }}</p>
         </div>
       </div>
@@ -280,6 +281,19 @@ const openProject = ref<Project | null>(null)
   font-size: 0.6875rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* Скриншот в рамке — как иллюстрация в печати, без скруглений и теней. */
+.shot {
+  margin: 0;
+  border: var(--rule) solid var(--ink);
+  background: var(--paper-3);
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
 }
 
 .lead-case__takeaway {

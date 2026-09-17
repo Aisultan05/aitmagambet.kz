@@ -273,8 +273,6 @@ export const en: Content = {
     outcome: 'Outcome',
     before: 'Before',
     after: 'After',
-    viewPhoto: 'Site',
-    viewScheme: 'Scheme',
     items: [
       {
         id: 'svoydom',

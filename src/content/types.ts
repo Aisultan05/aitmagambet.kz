@@ -147,8 +147,6 @@ export interface Content {
     outcome: string
     before: string
     after: string
-    viewPhoto: string
-    viewScheme: string
   }
   a11y: {
     heading: string
